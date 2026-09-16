@@ -1,0 +1,95 @@
+package com.landiafarm.rainservice.entity;
+
+import java.time.LocalDateTime;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name = "rain_readings")
+public class RainReading {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private String sensorId;
+
+    @Column(nullable = false)
+    private Double value;
+
+    @Column(nullable = false)
+    private String unit;
+
+    @Column(nullable = false)
+    private LocalDateTime recordedAt;
+
+    @Column(nullable = false)
+    private LocalDateTime createdAt;
+
+    public RainReading() {
+    }
+
+    public RainReading(
+            String sensorId,
+            Double value,
+            String unit,
+            LocalDateTime recordedAt,
+            LocalDateTime createdAt) {
+
+        this.sensorId = sensorId;
+        this.value = value;
+        this.unit = unit;
+        this.recordedAt = recordedAt;
+        this.createdAt = createdAt;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public String getSensorId() {
+        return sensorId;
+    }
+
+    public void setSensorId(String sensorId) {
+        this.sensorId = sensorId;
+    }
+
+    public Double getValue() {
+        return value;
+    }
+
+    public void setValue(Double value) {
+        this.value = value;
+    }
+
+    public String getUnit() {
+        return unit;
+    }
+
+    public void setUnit(String unit) {
+        this.unit = unit;
+    }
+
+    public LocalDateTime getRecordedAt() {
+        return recordedAt;
+    }
+
+    public void setRecordedAt(LocalDateTime recordedAt) {
+        this.recordedAt = recordedAt;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+}

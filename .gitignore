@@ -1,0 +1,35 @@
+# Maven
+**/target/
+**/.mvn/timing.properties
+
+# Java
+*.class
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment / Secrets
+.env
+.env.*
+!.env.example
+
+# Local configuration
+application-local.properties
+application-local.yml
+
+# Temporary files
+*.tmp
+*.temp
+
+# Docker
+docker-data/
