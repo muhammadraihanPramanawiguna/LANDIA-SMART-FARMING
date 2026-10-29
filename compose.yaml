@@ -43,10 +43,14 @@ services:
   dht-service:
     build:
       context: ./dht-service
-      dockerfile: Dockerfile
+      dockerfile: dockerfile
 
     container_name: landia-dht-service
     restart: unless-stopped
+
+    environment:
+      TZ: Asia/Jakarta
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Jakarta"
 
     ports:
       - "8081:8081"
@@ -62,10 +66,14 @@ services:
   soil-service:
     build:
       context: ./soil-service
-      dockerfile: Dockerfile
+      dockerfile: dockerfile
 
     container_name: landia-soil-service
     restart: unless-stopped
+
+    environment:
+      TZ: Asia/Jakarta
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Jakarta"
 
     ports:
       - "8080:8080"
@@ -81,10 +89,14 @@ services:
   water-level-service:
     build:
       context: ./water-level-service
-      dockerfile: Dockerfile
+      dockerfile: dockerfile
 
     container_name: landia-water-level-service
     restart: unless-stopped
+
+    environment:
+      TZ: Asia/Jakarta
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Jakarta"
 
     ports:
       - "8082:8082"
@@ -100,10 +112,14 @@ services:
   rain-service:
     build:
       context: ./rain-service
-      dockerfile: Dockerfile
+      dockerfile: dockerfile
 
     container_name: landia-rain-service
     restart: unless-stopped
+
+    environment:
+      TZ: Asia/Jakarta
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Jakarta"
 
     ports:
       - "8083:8083"
@@ -119,10 +135,14 @@ services:
   flow-service:
     build:
       context: ./flow-service
-      dockerfile: Dockerfile
+      dockerfile: dockerfile
 
     container_name: landia-flow-service
     restart: unless-stopped
+
+    environment:
+      TZ: Asia/Jakarta
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Jakarta"
 
     ports:
       - "8084:8084"
@@ -138,10 +158,14 @@ services:
   irrigation-service:
     build:
       context: ./irrigation-service
-      dockerfile: Dockerfile
+      dockerfile: dockerfile
 
     container_name: landia-irrigation-service
     restart: unless-stopped
+
+    environment:
+      TZ: Asia/Jakarta
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Jakarta"
 
     ports:
       - "8085:8085"
@@ -155,9 +179,6 @@ services:
 # VOLUMES
 # ==========================================
 volumes:
-
   postgres-data:
-
   mosquitto-data:
-
   mosquitto-log:

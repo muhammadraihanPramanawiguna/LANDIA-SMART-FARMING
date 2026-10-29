@@ -3,6 +3,7 @@ package com.landiafarm.dhtservice.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.integration.config.EnableIntegration;
 import org.springframework.integration.dsl.IntegrationFlow;
 import org.springframework.integration.mqtt.core.MqttPahoClientFactory;
 import org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter;
@@ -10,6 +11,7 @@ import org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannel
 import com.landiafarm.dhtservice.mqtt.MqttDhtMessageListener;
 
 @Configuration
+@EnableIntegration
 public class MqttInboundConfig {
 
     @Value("${mqtt.client.id}")
@@ -19,8 +21,9 @@ public class MqttInboundConfig {
     private String topic;
 
     @Bean
-    public MqttPahoMessageDrivenChannelAdapter mqttInbound(
-            MqttPahoClientFactory mqttClientFactory) {
+    public IntegrationFlow mqttDhtFlow(
+            MqttPahoClientFactory mqttClientFactory,
+            MqttDhtMessageListener dhtMessageListener) {
 
         MqttPahoMessageDrivenChannelAdapter adapter =
                 new MqttPahoMessageDrivenChannelAdapter(
@@ -32,17 +35,9 @@ public class MqttInboundConfig {
         adapter.setCompletionTimeout(5000);
         adapter.setQos(1);
 
-        return adapter;
-    }
-
-    @Bean
-    public IntegrationFlow mqttInboundFlow(
-            MqttPahoMessageDrivenChannelAdapter adapter,
-            MqttDhtMessageListener listener) {
-
         return IntegrationFlow
                 .from(adapter)
-                .handle(listener, "handleMessage")
+                .handle(dhtMessageListener, "handleMessage")
                 .get();
     }
 }

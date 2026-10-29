@@ -1,5 +1,5 @@
 package com.landiafarm.rainservice.config;
-
+import org.springframework.integration.config.EnableIntegration;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,6 +10,7 @@ import org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannel
 import com.landiafarm.rainservice.mqtt.MqttRainMessageListener;
 
 @Configuration
+@EnableIntegration
 public class MqttInboundConfig {
 
     @Value("${mqtt.client.id}")
