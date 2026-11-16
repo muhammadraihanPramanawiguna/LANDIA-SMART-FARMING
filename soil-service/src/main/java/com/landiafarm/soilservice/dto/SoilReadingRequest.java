@@ -1,12 +1,22 @@
+
 package com.landiafarm.soilservice.dto;
 
 public class SoilReadingRequest {
 
+    private String recordId;
     private String sensorId;
     private Double value;
     private String unit;
 
     public SoilReadingRequest() {
+    }
+
+    public String getRecordId() {
+        return recordId;
+    }
+
+    public void setRecordId(String recordId) {
+        this.recordId = recordId;
     }
 
     public String getSensorId() {

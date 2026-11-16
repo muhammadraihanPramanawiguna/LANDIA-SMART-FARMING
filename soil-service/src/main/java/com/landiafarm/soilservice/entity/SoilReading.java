@@ -1,3 +1,4 @@
+
 package com.landiafarm.soilservice.entity;
 
 import java.time.LocalDateTime;
@@ -16,6 +17,10 @@ public class SoilReading {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    // Nullable agar data historis lama tetap kompatibel.
+    @Column(name = "record_id", length = 64, unique = true)
+    private String recordId;
 
     @Column(nullable = false)
     private String sensorId;
@@ -37,6 +42,14 @@ public class SoilReading {
 
     public Long getId() {
         return id;
+    }
+
+    public String getRecordId() {
+        return recordId;
+    }
+
+    public void setRecordId(String recordId) {
+        this.recordId = recordId;
     }
 
     public String getSensorId() {

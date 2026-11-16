@@ -1,0 +1,35 @@
+
+package com.landiafarm.soilservice.config;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory;
+import org.springframework.integration.mqtt.outbound.MqttPahoMessageHandler;
+
+@Configuration
+public class MqttOutboundConfig {
+
+    @Value("${mqtt.client.id}")
+    private String clientId;
+
+    @Value("${mqtt.ack.topic}")
+    private String ackTopic;
+
+    @Bean
+    public MqttPahoMessageHandler mqttAckOutbound(
+            DefaultMqttPahoClientFactory mqttClientFactory) {
+
+        MqttPahoMessageHandler handler =
+                new MqttPahoMessageHandler(
+                        clientId + "-ack-publisher",
+                        mqttClientFactory
+                );
+
+        handler.setAsync(false);
+        handler.setDefaultTopic(ackTopic);
+        handler.setDefaultQos(1);
+
+        return handler;
+    }
+}
