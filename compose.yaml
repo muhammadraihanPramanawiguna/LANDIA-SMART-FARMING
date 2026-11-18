@@ -213,6 +213,49 @@ services:
         condition: service_started
 
 
+  # ==========================================
+  # API GATEWAY
+  # ==========================================
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+
+    container_name: landia-api-gateway
+    restart: unless-stopped
+
+    environment:
+      TZ: Asia/Jakarta
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Jakarta"
+
+      SERVER_PORT: "8086"
+
+      SOIL_SERVICE_URL: http://soil-service:8080
+      DHT_SERVICE_URL: http://dht-service:8081
+      WATER_LEVEL_SERVICE_URL: http://water-level-service:8082
+      RAIN_SERVICE_URL: http://rain-service:8083
+      FLOW_SERVICE_URL: http://flow-service:8084
+      IRRIGATION_SERVICE_URL: http://irrigation-service:8085
+
+    ports:
+      - "8086:8086"
+
+    depends_on:
+      soil-service:
+        condition: service_started
+      dht-service:
+        condition: service_started
+      water-level-service:
+        condition: service_started
+      rain-service:
+        condition: service_started
+      flow-service:
+        condition: service_started
+      irrigation-service:
+        condition: service_started
+
+
+
 # ==========================================
 # VOLUMES
 # ==========================================

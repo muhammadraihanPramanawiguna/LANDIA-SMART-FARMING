@@ -1,0 +1,65 @@
+
+server:
+  port: ${SERVER_PORT:8086}
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      server:
+        webmvc:
+          routes:
+
+            # SOIL SERVICE
+            - id: soil-service
+              uri: ${SOIL_SERVICE_URL:http://localhost:8080}
+              predicates:
+                - Path=/api/soil/**
+
+            # DHT SERVICE
+            - id: dht-service
+              uri: ${DHT_SERVICE_URL:http://localhost:8081}
+              predicates:
+                - Path=/api/dht/**
+
+            # WATER LEVEL SERVICE
+            - id: water-level-service
+              uri: ${WATER_LEVEL_SERVICE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/water-level/**
+
+            # RAIN SERVICE
+            - id: rain-service
+              uri: ${RAIN_SERVICE_URL:http://localhost:8083}
+              predicates:
+                - Path=/api/rain/**
+
+            # FLOW SERVICE
+            - id: flow-service
+              uri: ${FLOW_SERVICE_URL:http://localhost:8084}
+              predicates:
+                - Path=/api/flow/**
+
+            # IRRIGATION SERVICE
+            - id: irrigation-service
+              uri: ${IRRIGATION_SERVICE_URL:http://localhost:8085}
+              predicates:
+                - Path=/api/irrigation/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+  endpoint:
+    health:
+      show-details: never
+
+info:
+  application:
+    name: Landia Farm API Gateway
+    description: Central REST API Gateway for Landia Farm
+    version: 1.0.0
