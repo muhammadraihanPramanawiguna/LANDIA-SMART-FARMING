@@ -1,3 +1,4 @@
+
 package com.landiafarm.dhtservice.config;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -23,7 +24,8 @@ public class MqttInboundConfig {
     @Bean
     public IntegrationFlow mqttDhtFlow(
             MqttPahoClientFactory mqttClientFactory,
-            MqttDhtMessageListener dhtMessageListener) {
+            MqttDhtMessageListener dhtMessageListener
+    ) {
 
         MqttPahoMessageDrivenChannelAdapter adapter =
                 new MqttPahoMessageDrivenChannelAdapter(

@@ -1,13 +1,21 @@
+
 package com.landiafarm.irrigationservice.controller;
+
+import java.util.List;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.landiafarm.irrigationservice.dto.IrrigationEventRequest;
 import com.landiafarm.irrigationservice.entity.IrrigationEvent;
 import com.landiafarm.irrigationservice.service.IrrigationEventService;
-import jakarta.validation.Valid;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/irrigation/events")
@@ -25,7 +33,7 @@ public class IrrigationEventController {
     public ResponseEntity<IrrigationEvent> execute(
             @Valid @RequestBody IrrigationEventRequest request) {
 
-        return ResponseEntity.ok(
+        return ResponseEntity.accepted().body(
                 service.execute(request)
         );
     }

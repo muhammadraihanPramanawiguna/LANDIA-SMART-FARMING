@@ -1,3 +1,4 @@
+
 package com.landiafarm.dhtservice.dto;
 
 import java.time.LocalDateTime;
@@ -6,6 +7,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public class DhtReadingRequest {
+
+    private String recordId;
+    private String deviceId;
 
     @NotBlank
     private String sensorId;
@@ -19,6 +23,22 @@ public class DhtReadingRequest {
     private LocalDateTime recordedAt;
 
     public DhtReadingRequest() {
+    }
+
+    public String getRecordId() {
+        return recordId;
+    }
+
+    public void setRecordId(String recordId) {
+        this.recordId = recordId;
+    }
+
+    public String getDeviceId() {
+        return deviceId;
+    }
+
+    public void setDeviceId(String deviceId) {
+        this.deviceId = deviceId;
     }
 
     public String getSensorId() {

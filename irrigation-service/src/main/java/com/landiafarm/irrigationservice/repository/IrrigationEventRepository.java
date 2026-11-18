@@ -1,14 +1,21 @@
+
 package com.landiafarm.irrigationservice.repository;
 
-import com.landiafarm.irrigationservice.entity.IrrigationEvent;
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.List;
+import com.landiafarm.irrigationservice.entity.IrrigationEvent;
 
 public interface IrrigationEventRepository
         extends JpaRepository<IrrigationEvent, Long> {
 
     List<IrrigationEvent> findByDeviceIdOrderByExecutedAtDesc(
             String deviceId
+    );
+
+    List<IrrigationEvent> findByDeviceIdAndStatusOrderByCreatedAtDesc(
+            String deviceId,
+            String status
     );
 }

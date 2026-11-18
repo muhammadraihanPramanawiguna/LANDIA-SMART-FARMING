@@ -23,11 +23,16 @@ public class MqttSoilAckPublisher {
         this.objectMapper = objectMapper;
     }
 
-    public void publishStored(String recordId) throws Exception {
+    public void publishStored(
+            String recordId,
+            String deviceId
+    ) throws Exception {
 
         String payload = objectMapper.writeValueAsString(
                 Map.of(
                         "recordId", recordId,
+                        "deviceId", deviceId,
+                        "sensorType", "soil",
                         "status", "stored"
                 )
         );

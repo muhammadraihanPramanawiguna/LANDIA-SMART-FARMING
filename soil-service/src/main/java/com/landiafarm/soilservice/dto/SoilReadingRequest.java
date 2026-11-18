@@ -4,6 +4,7 @@ package com.landiafarm.soilservice.dto;
 public class SoilReadingRequest {
 
     private String recordId;
+    private String deviceId;
     private String sensorId;
     private Double value;
     private String unit;
@@ -17,6 +18,14 @@ public class SoilReadingRequest {
 
     public void setRecordId(String recordId) {
         this.recordId = recordId;
+    }
+
+    public String getDeviceId() {
+        return deviceId;
+    }
+
+    public void setDeviceId(String deviceId) {
+        this.deviceId = deviceId;
     }
 
     public String getSensorId() {

@@ -1,8 +1,14 @@
+
 package com.landiafarm.irrigationservice.entity;
 
-import jakarta.persistence.*;
-
 import java.time.LocalDateTime;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "irrigation_events")
@@ -12,13 +18,15 @@ public class IrrigationEvent {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String deviceId;
 
     @Column(nullable = false)
     private String command;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 30)
+    private String status;
+
     private LocalDateTime executedAt;
 
     @Column(nullable = false)
@@ -45,6 +53,14 @@ public class IrrigationEvent {
 
     public void setCommand(String command) {
         this.command = command;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     public LocalDateTime getExecutedAt() {

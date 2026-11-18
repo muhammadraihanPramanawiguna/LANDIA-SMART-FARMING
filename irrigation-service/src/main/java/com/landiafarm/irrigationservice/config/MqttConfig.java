@@ -1,3 +1,4 @@
+
 package com.landiafarm.irrigationservice.config;
 
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
@@ -13,19 +14,12 @@ public class MqttConfig {
     @Value("${mqtt.broker.url}")
     private String brokerUrl;
 
-    @Value("${mqtt.client.id}")
-    private String clientId;
-
     @Bean
     public MqttPahoClientFactory mqttClientFactory() {
 
-        MqttConnectOptions options =
-                new MqttConnectOptions();
+        MqttConnectOptions options = new MqttConnectOptions();
 
-        options.setServerURIs(
-                new String[]{brokerUrl}
-        );
-
+        options.setServerURIs(new String[]{brokerUrl});
         options.setCleanSession(true);
         options.setAutomaticReconnect(true);
         options.setConnectionTimeout(10);

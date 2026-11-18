@@ -1,8 +1,14 @@
+
 package com.landiafarm.waterlevelservice.entity;
 
-import jakarta.persistence.*;
-
 import java.time.LocalDateTime;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "water_level_readings")
@@ -11,6 +17,12 @@ public class WaterLevelReading {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "record_id", length = 64, unique = true)
+    private String recordId;
+
+    @Column(name = "device_id", length = 100)
+    private String deviceId;
 
     @Column(nullable = false)
     private String sensorId;
@@ -32,6 +44,22 @@ public class WaterLevelReading {
 
     public Long getId() {
         return id;
+    }
+
+    public String getRecordId() {
+        return recordId;
+    }
+
+    public void setRecordId(String recordId) {
+        this.recordId = recordId;
+    }
+
+    public String getDeviceId() {
+        return deviceId;
+    }
+
+    public void setDeviceId(String deviceId) {
+        this.deviceId = deviceId;
     }
 
     public String getSensorId() {

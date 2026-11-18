@@ -1,3 +1,4 @@
+
 package com.landiafarm.waterlevelservice.config;
 
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
@@ -7,16 +8,11 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory;
 import org.springframework.integration.mqtt.core.MqttPahoClientFactory;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 @Configuration
 public class MqttConfig {
 
     @Value("${mqtt.broker.url}")
     private String brokerUrl;
-
-    @Value("${mqtt.client.id}")
-    private String clientId;
 
     @Bean
     public MqttPahoClientFactory mqttClientFactory() {
@@ -39,10 +35,5 @@ public class MqttConfig {
         factory.setConnectionOptions(options);
 
         return factory;
-    }
-
-    @Bean
-    public ObjectMapper objectMapper() {
-        return new ObjectMapper();
     }
 }

@@ -18,9 +18,13 @@ public class SoilReading {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Nullable agar data historis lama tetap kompatibel.
-    @Column(name = "record_id", length = 64, unique = true)
-    private String recordId;
+    // Nullable untuk kompatibilitas data historis.
+@Column(name = "record_id", length = 64)
+private String recordId;
+
+    // Nullable untuk data historis yang belum memiliki deviceId.
+    @Column(name = "device_id", length = 100)
+    private String deviceId;
 
     @Column(nullable = false)
     private String sensorId;
@@ -50,6 +54,14 @@ public class SoilReading {
 
     public void setRecordId(String recordId) {
         this.recordId = recordId;
+    }
+
+    public String getDeviceId() {
+        return deviceId;
+    }
+
+    public void setDeviceId(String deviceId) {
+        this.deviceId = deviceId;
     }
 
     public String getSensorId() {

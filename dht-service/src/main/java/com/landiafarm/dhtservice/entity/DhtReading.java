@@ -1,3 +1,4 @@
+
 package com.landiafarm.dhtservice.entity;
 
 import java.time.LocalDateTime;
@@ -16,6 +17,12 @@ public class DhtReading {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "record_id", length = 64, unique = true)
+    private String recordId;
+
+    @Column(name = "device_id", length = 100)
+    private String deviceId;
 
     @Column(nullable = false)
     private String sensorId;
@@ -37,6 +44,22 @@ public class DhtReading {
 
     public Long getId() {
         return id;
+    }
+
+    public String getRecordId() {
+        return recordId;
+    }
+
+    public void setRecordId(String recordId) {
+        this.recordId = recordId;
+    }
+
+    public String getDeviceId() {
+        return deviceId;
+    }
+
+    public void setDeviceId(String deviceId) {
+        this.deviceId = deviceId;
     }
 
     public String getSensorId() {

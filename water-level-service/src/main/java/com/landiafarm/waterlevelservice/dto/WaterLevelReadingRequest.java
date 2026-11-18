@@ -1,24 +1,34 @@
-package com.landiafarm.waterlevelservice.dto;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+package com.landiafarm.waterlevelservice.dto;
 
 import java.time.LocalDateTime;
 
 public class WaterLevelReadingRequest {
 
-    @NotBlank
+    private String recordId;
+    private String deviceId;
     private String sensorId;
-
-    @NotNull
     private Double value;
-
-    @NotBlank
     private String unit;
-
     private LocalDateTime recordedAt;
 
     public WaterLevelReadingRequest() {
+    }
+
+    public String getRecordId() {
+        return recordId;
+    }
+
+    public void setRecordId(String recordId) {
+        this.recordId = recordId;
+    }
+
+    public String getDeviceId() {
+        return deviceId;
+    }
+
+    public void setDeviceId(String deviceId) {
+        this.deviceId = deviceId;
     }
 
     public String getSensorId() {

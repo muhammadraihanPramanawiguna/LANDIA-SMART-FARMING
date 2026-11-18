@@ -32,6 +32,8 @@ public class MqttSoilMessageListener {
 
     public void handleMessage(Message<?> message) {
 
+        String recordId = null;
+
         try {
             String payload = message.getPayload().toString();
 
@@ -41,26 +43,44 @@ public class MqttSoilMessageListener {
                             SoilReadingRequest.class
                     );
 
-            // Simpan data terlebih dahulu.
-            // Method @Transactional akan commit sebelum kembali ke sini.
+            // Simpan dan selesaikan transaksi database terlebih dahulu.
             soilReadingService.saveReading(request);
 
-            // Data lama tetap diproses, tetapi tidak memerlukan ACK.
-            if (request.getRecordId() == null
-                    || request.getRecordId().isBlank()) {
+            recordId = request.getRecordId();
+
+            // Pesan legacy tanpa recordId tidak memerlukan application ACK.
+            if (recordId == null || recordId.isBlank()) {
                 log.info("Legacy soil message stored without application ACK");
                 return;
             }
 
-            String recordId = request.getRecordId().trim();
+            String deviceId = request.getDeviceId();
 
-            // ACK baru dikirim setelah penyimpanan berhasil.
-            ackPublisher.publishStored(recordId);
+            if (deviceId == null || deviceId.isBlank()) {
+                log.error(
+                        "Soil record stored but ACK cannot be published: deviceId is missing, recordId={}",
+                        recordId
+                );
+                return;
+            }
 
-            log.info("Soil record stored and ACK published: {}", recordId);
+            recordId = recordId.trim();
+            deviceId = deviceId.trim();
+
+            // ACK dikirim setelah saveReading selesai.
+            ackPublisher.publishStored(recordId, deviceId);
+
+            log.info(
+                    "Soil record stored and ACK published: recordId={}",
+                    recordId
+            );
 
         } catch (Exception e) {
-            log.error("Failed to process MQTT soil message", e);
+            log.error(
+                    "Failed to process MQTT soil message. recordId={}. ACK not confirmed.",
+                    recordId,
+                    e
+            );
         }
     }
 }

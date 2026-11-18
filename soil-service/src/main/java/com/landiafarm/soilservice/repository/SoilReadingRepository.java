@@ -20,20 +20,39 @@ public interface SoilReadingRepository
 
     Optional<SoilReading> findByRecordId(String recordId);
 
-    @Modifying
-    @Query(value = """
-            INSERT INTO soil_readings
-                (record_id, sensor_id, value, unit, recorded_at, created_at)
-            VALUES
-                (:recordId, :sensorId, :value, :unit, :recordedAt, :createdAt)
-            ON CONFLICT (record_id) DO NOTHING
-            """, nativeQuery = true)
-    int insertIfAbsent(
-            @Param("recordId") String recordId,
-            @Param("sensorId") String sensorId,
-            @Param("value") Double value,
-            @Param("unit") String unit,
-            @Param("recordedAt") LocalDateTime recordedAt,
-            @Param("createdAt") LocalDateTime createdAt
-    );
+   
+@Modifying
+@Query(value = """
+        INSERT INTO soil_readings
+            (
+                record_id,
+                device_id,
+                sensor_id,
+                value,
+                unit,
+                recorded_at,
+                created_at
+            )
+        VALUES
+            (
+                :recordId,
+                :deviceId,
+                :sensorId,
+                :value,
+                :unit,
+                :recordedAt,
+                :createdAt
+            )
+        ON CONFLICT (record_id) DO NOTHING
+        """, nativeQuery = true)
+int insertIfAbsent(
+        @Param("recordId") String recordId,
+        @Param("deviceId") String deviceId,
+        @Param("sensorId") String sensorId,
+        @Param("value") Double value,
+        @Param("unit") String unit,
+        @Param("recordedAt") LocalDateTime recordedAt,
+        @Param("createdAt") LocalDateTime createdAt
+);
+
 }

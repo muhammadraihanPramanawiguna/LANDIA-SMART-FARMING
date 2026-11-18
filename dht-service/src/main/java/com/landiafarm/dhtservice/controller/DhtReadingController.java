@@ -1,3 +1,4 @@
+
 package com.landiafarm.dhtservice.controller;
 
 import java.util.List;
@@ -22,15 +23,14 @@ public class DhtReadingController {
 
     private final DhtReadingService service;
 
-    public DhtReadingController(
-            DhtReadingService service) {
+    public DhtReadingController(DhtReadingService service) {
         this.service = service;
     }
 
     @PostMapping
     public ResponseEntity<DhtReading> create(
-            @Valid @RequestBody DhtReadingRequest request) {
-
+            @Valid @RequestBody DhtReadingRequest request
+    ) {
         return ResponseEntity.ok(
                 service.save(request)
         );
@@ -38,7 +38,6 @@ public class DhtReadingController {
 
     @GetMapping
     public ResponseEntity<List<DhtReading>> findAll() {
-
         return ResponseEntity.ok(
                 service.findAll()
         );
@@ -46,8 +45,8 @@ public class DhtReadingController {
 
     @GetMapping("/{sensorId}")
     public ResponseEntity<List<DhtReading>> findBySensorId(
-            @PathVariable String sensorId) {
-
+            @PathVariable String sensorId
+    ) {
         return ResponseEntity.ok(
                 service.findBySensorId(sensorId)
         );
@@ -55,10 +54,9 @@ public class DhtReadingController {
 
     @GetMapping("/{sensorId}/latest")
     public ResponseEntity<DhtReading> findLatest(
-            @PathVariable String sensorId) {
-
-        DhtReading latest =
-                service.findLatest(sensorId);
+            @PathVariable String sensorId
+    ) {
+        DhtReading latest = service.findLatest(sensorId);
 
         if (latest == null) {
             return ResponseEntity.notFound().build();

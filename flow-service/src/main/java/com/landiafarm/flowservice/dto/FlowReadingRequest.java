@@ -1,3 +1,4 @@
+
 package com.landiafarm.flowservice.dto;
 
 import java.time.LocalDateTime;
@@ -6,6 +7,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public class FlowReadingRequest {
+
+    private String recordId;
+    private String deviceId;
 
     @NotBlank(message = "sensorId tidak boleh kosong")
     private String sensorId;
@@ -31,6 +35,22 @@ public class FlowReadingRequest {
         this.value = value;
         this.unit = unit;
         this.recordedAt = recordedAt;
+    }
+
+    public String getRecordId() {
+        return recordId;
+    }
+
+    public void setRecordId(String recordId) {
+        this.recordId = recordId;
+    }
+
+    public String getDeviceId() {
+        return deviceId;
+    }
+
+    public void setDeviceId(String deviceId) {
+        this.deviceId = deviceId;
     }
 
     public String getSensorId() {

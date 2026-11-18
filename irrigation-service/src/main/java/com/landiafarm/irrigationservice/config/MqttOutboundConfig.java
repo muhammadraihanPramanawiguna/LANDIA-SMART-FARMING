@@ -1,3 +1,4 @@
+
 package com.landiafarm.irrigationservice.config;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -25,7 +26,7 @@ public class MqttOutboundConfig {
                         mqttClientFactory
                 );
 
-        handler.setAsync(true);
+        handler.setAsync(false);
         handler.setDefaultTopic(topic);
         handler.setDefaultQos(1);
 
