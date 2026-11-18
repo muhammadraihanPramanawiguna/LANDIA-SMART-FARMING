@@ -1,3 +1,4 @@
+
 package com.landiafarm.soilservice.config;
 
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
@@ -7,6 +8,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 @Configuration
 public class MqttConfig {
@@ -17,13 +19,9 @@ public class MqttConfig {
     @Bean
     public DefaultMqttPahoClientFactory mqttClientFactory() {
 
-        MqttConnectOptions options =
-                new MqttConnectOptions();
+        MqttConnectOptions options = new MqttConnectOptions();
 
-        options.setServerURIs(
-                new String[]{brokerUrl}
-        );
-
+        options.setServerURIs(new String[]{brokerUrl});
         options.setCleanSession(true);
         options.setAutomaticReconnect(true);
         options.setConnectionTimeout(10);
@@ -39,6 +37,7 @@ public class MqttConfig {
 
     @Bean
     public ObjectMapper objectMapper() {
-        return new ObjectMapper();
+        return new ObjectMapper()
+                .registerModule(new JavaTimeModule());
     }
 }
