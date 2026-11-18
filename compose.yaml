@@ -219,7 +219,7 @@ services:
   api-gateway:
     build:
       context: ./api-gateway
-      dockerfile: Dockerfile
+      dockerfile: dockerfile
 
     container_name: landia-api-gateway
     restart: unless-stopped
