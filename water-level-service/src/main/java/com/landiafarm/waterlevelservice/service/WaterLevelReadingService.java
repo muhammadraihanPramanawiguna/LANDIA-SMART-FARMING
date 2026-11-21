@@ -4,16 +4,20 @@ package com.landiafarm.waterlevelservice.service;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Locale;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.landiafarm.waterlevelservice.dto.WaterLevelReadingRequest;
 import com.landiafarm.waterlevelservice.entity.WaterLevelReading;
+import com.landiafarm.waterlevelservice.exception.WaterLevelReadingConflictException;
 import com.landiafarm.waterlevelservice.repository.WaterLevelReadingRepository;
 
 @Service
 public class WaterLevelReadingService {
+
+    private static final String EXPECTED_UNIT = "cm";
 
     private final WaterLevelReadingRepository repository;
 
@@ -27,48 +31,47 @@ public class WaterLevelReadingService {
 
         validate(request);
 
-        LocalDateTime now = LocalDateTime.now();
+        // Samakan presisi waktu dengan PostgreSQL (mikrodetik).
+        LocalDateTime now = LocalDateTime.now()
+                .truncatedTo(ChronoUnit.MICROS);
 
-        String recordId = request.getRecordId();
+        String recordId = normalize(request.getRecordId());
+        String deviceId = normalize(request.getDeviceId());
+        String sensorId = request.getSensorId().trim();
+        String unit = normalizeUnit(request.getUnit());
+        Double value = request.getValue();
+
+        // Timestamp dari request juga dinormalisasi ke mikrodetik.
+        LocalDateTime recordedAt =
+                request.getRecordedAt() != null
+                        ? request.getRecordedAt()
+                                .truncatedTo(ChronoUnit.MICROS)
+                        : now;
 
         // Kompatibilitas data lama tanpa recordId.
         if (recordId == null) {
 
             WaterLevelReading reading = new WaterLevelReading();
 
-            reading.setDeviceId(normalize(request.getDeviceId()));
-            reading.setSensorId(request.getSensorId().trim());
-            reading.setValue(request.getValue());
-            reading.setUnit(request.getUnit().trim());
-
-            reading.setRecordedAt(
-                    request.getRecordedAt() != null
-                            ? request.getRecordedAt()
-                                    .truncatedTo(ChronoUnit.MICROS)
-                            : now
-            );
-
+            reading.setDeviceId(deviceId);
+            reading.setSensorId(sensorId);
+            reading.setValue(value);
+            reading.setUnit(unit);
+            reading.setRecordedAt(recordedAt);
             reading.setCreatedAt(now);
 
             return repository.save(reading);
         }
 
-        final String normalizedRecordId = recordId.trim();
-
-        if (normalizedRecordId.isEmpty()
-                || normalizedRecordId.length() > 64) {
+        if (recordId.length() > 64) {
             throw new IllegalArgumentException(
-                    "recordId must contain 1 to 64 characters"
+                    "recordId must not exceed 64 characters"
             );
         }
 
-        final String deviceId = normalize(request.getDeviceId());
-        final String sensorId = request.getSensorId().trim();
-        final String unit = request.getUnit().trim();
-
         if (deviceId == null) {
             throw new IllegalArgumentException(
-                    "deviceId is required"
+                    "deviceId is required when recordId is provided"
             );
         }
 
@@ -78,18 +81,12 @@ public class WaterLevelReadingService {
             );
         }
 
-        LocalDateTime recordedAt =
-                request.getRecordedAt() != null
-                        ? request.getRecordedAt()
-                                .truncatedTo(ChronoUnit.MICROS)
-                        : now;
-
         // Insert hanya jika recordId belum tersedia.
         repository.insertIfAbsent(
-                normalizedRecordId,
+                recordId,
                 deviceId,
                 sensorId,
-                request.getValue(),
+                value,
                 unit,
                 recordedAt,
                 now
@@ -97,27 +94,28 @@ public class WaterLevelReadingService {
 
         // Ambil record baru atau record lama jika duplikat.
         WaterLevelReading stored = repository
-                .findByRecordId(normalizedRecordId)
+                .findByRecordId(recordId)
                 .orElseThrow(() -> new IllegalStateException(
-                        "Record not found after insert: "
-                                + normalizedRecordId
+                        "Record not found after insert: " + recordId
                 ));
 
-        // Pastikan recordId yang sama memiliki payload yang sama.
-        boolean samePayload =
-                deviceId.equals(stored.getDeviceId())
-                && sensorId.equals(stored.getSensorId())
-                && Double.compare(
-                        stored.getValue(),
-                        request.getValue()
-                ) == 0
-                && unit.equals(stored.getUnit())
-                && recordedAt.equals(stored.getRecordedAt());
-
+        // Pastikan recordId yang sama memiliki payload identik.
+       boolean samePayload =
+        deviceId.equals(stored.getDeviceId())
+        && sensorId.equals(stored.getSensorId())
+        && Double.compare(
+                value,
+                stored.getValue()
+        ) == 0
+        && unit.equals(stored.getUnit())
+        && (
+                request.getRecordedAt() == null
+                || recordedAt.equals(stored.getRecordedAt())
+        );
         if (!samePayload) {
-            throw new IllegalStateException(
-                    "recordId reused with different payload: "
-                            + normalizedRecordId
+            throw new WaterLevelReadingConflictException(
+                    "recordId already exists with different payload: "
+                            + recordId
             );
         }
 
@@ -133,15 +131,30 @@ public class WaterLevelReadingService {
     public List<WaterLevelReading> findBySensorId(
             String sensorId) {
 
-        return repository
-                .findBySensorIdOrderByRecordedAtDesc(sensorId);
+        if (sensorId == null || sensorId.isBlank()) {
+            throw new IllegalArgumentException(
+                    "sensorId is required"
+            );
+        }
+
+        return repository.findBySensorIdOrderByRecordedAtDesc(
+                sensorId.trim()
+        );
     }
 
     @Transactional(readOnly = true)
     public WaterLevelReading findLatest(String sensorId) {
 
+        if (sensorId == null || sensorId.isBlank()) {
+            throw new IllegalArgumentException(
+                    "sensorId is required"
+            );
+        }
+
         return repository
-                .findFirstBySensorIdOrderByRecordedAtDesc(sensorId)
+                .findFirstBySensorIdOrderByRecordedAtDesc(
+                        sensorId.trim()
+                )
                 .orElse(null);
     }
 
@@ -160,19 +173,27 @@ public class WaterLevelReadingService {
             );
         }
 
-        if (request.getValue() == null
-                || !Double.isFinite(request.getValue())) {
+        if (request.getSensorId().trim().length() > 100) {
+            throw new IllegalArgumentException(
+                    "sensorId must not exceed 100 characters"
+            );
+        }
+
+        Double value = request.getValue();
+
+        if (value == null || !Double.isFinite(value)) {
             throw new IllegalArgumentException(
                     "Valid water level value is required"
             );
         }
 
-        if (request.getUnit() == null
-                || request.getUnit().isBlank()) {
+        if (value < 0) {
             throw new IllegalArgumentException(
-                    "unit is required"
+                    "Water level value must not be negative"
             );
         }
+
+        normalizeUnit(request.getUnit());
 
         if (request.getRecordId() != null
                 && request.getRecordId().isBlank()) {
@@ -180,6 +201,25 @@ public class WaterLevelReadingService {
                     "recordId must not be blank"
             );
         }
+    }
+
+    private String normalizeUnit(String unit) {
+
+        if (unit == null || unit.isBlank()) {
+            throw new IllegalArgumentException(
+                    "unit is required"
+            );
+        }
+
+        String normalized = unit.trim().toLowerCase(Locale.ROOT);
+
+        if (!EXPECTED_UNIT.equals(normalized)) {
+            throw new IllegalArgumentException(
+                    "Water level unit must be cm"
+            );
+        }
+
+        return EXPECTED_UNIT;
     }
 
     private String normalize(String value) {

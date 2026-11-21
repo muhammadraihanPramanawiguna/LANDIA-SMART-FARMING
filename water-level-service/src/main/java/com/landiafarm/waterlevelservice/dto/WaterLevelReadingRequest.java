@@ -3,13 +3,33 @@ package com.landiafarm.waterlevelservice.dto;
 
 import java.time.LocalDateTime;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+
 public class WaterLevelReadingRequest {
 
+    @Size(max = 64, message = "recordId must not exceed 64 characters")
+    @Pattern(regexp = ".*\\S.*", message = "recordId must not be blank")
     private String recordId;
+
+    @Size(max = 100, message = "deviceId must not exceed 100 characters")
     private String deviceId;
+
+    @NotBlank(message = "sensorId is required")
+    @Size(max = 100, message = "sensorId must not exceed 100 characters")
     private String sensorId;
+
+    @NotNull(message = "value is required")
+    @DecimalMin(value = "0.0", message = "value must not be negative")
     private Double value;
+
+    @NotBlank(message = "unit is required")
+    @Size(max = 10, message = "unit must not exceed 10 characters")
     private String unit;
+
     private LocalDateTime recordedAt;
 
     public WaterLevelReadingRequest() {

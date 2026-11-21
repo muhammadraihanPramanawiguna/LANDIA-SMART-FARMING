@@ -1,3 +1,4 @@
+
 package com.landiafarm.waterlevelservice.config;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -7,6 +8,7 @@ import org.springframework.integration.config.EnableIntegration;
 import org.springframework.integration.dsl.IntegrationFlow;
 import org.springframework.integration.mqtt.core.MqttPahoClientFactory;
 import org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter;
+import org.springframework.integration.mqtt.support.DefaultPahoMessageConverter;
 
 import com.landiafarm.waterlevelservice.mqtt.MqttWaterLevelMessageListener;
 
@@ -32,8 +34,17 @@ public class MqttInboundConfig {
                         topic
                 );
 
+        DefaultPahoMessageConverter converter =
+                new DefaultPahoMessageConverter();
+
+        converter.setPayloadAsBytes(true);
+
+        adapter.setConverter(converter);
         adapter.setCompletionTimeout(5000);
         adapter.setQos(1);
+
+        // MQTT Protocol ACK dikendalikan secara manual.
+        adapter.setManualAcks(true);
 
         return IntegrationFlow
                 .from(adapter)
