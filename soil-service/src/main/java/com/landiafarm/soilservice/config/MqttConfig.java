@@ -18,7 +18,6 @@ public class MqttConfig {
 
     @Bean
     public DefaultMqttPahoClientFactory mqttClientFactory() {
-
         MqttConnectOptions options = new MqttConnectOptions();
 
         options.setServerURIs(new String[]{brokerUrl});
@@ -37,7 +36,8 @@ public class MqttConfig {
 
     @Bean
     public ObjectMapper objectMapper() {
-        return new ObjectMapper()
-                .registerModule(new JavaTimeModule());
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new JavaTimeModule());
+        return mapper;
     }
 }

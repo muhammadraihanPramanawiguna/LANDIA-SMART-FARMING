@@ -1,6 +1,8 @@
 
 package com.landiafarm.soilservice.mqtt;
 
+import java.nio.charset.StandardCharsets;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.messaging.Message;
@@ -33,54 +35,143 @@ public class MqttSoilMessageListener {
     public void handleMessage(Message<?> message) {
 
         String recordId = null;
+        String deviceId = null;
+        String payload = null;
 
         try {
-            String payload = message.getPayload().toString();
 
+            // 1. Validasi dan ekstrak payload.
+            payload = extractPayload(message);
+
+            if (payload.isBlank()) {
+                throw new IllegalArgumentException(
+                        "MQTT payload kosong"
+                );
+            }
+
+            log.info(
+                    "MQTT soil message received. Payload length={}",
+                    payload.length()
+            );
+
+            // 2. Parse JSON menjadi SoilReadingRequest.
             SoilReadingRequest request =
                     objectMapper.readValue(
                             payload,
                             SoilReadingRequest.class
                     );
 
-            // Simpan dan selesaikan transaksi database terlebih dahulu.
+            if (request == null) {
+                throw new IllegalArgumentException(
+                        "Soil request tidak boleh null"
+                );
+            }
+
+            // 3. Normalisasi recordId.
+            if (request.getRecordId() != null) {
+                recordId = request.getRecordId().trim();
+                request.setRecordId(recordId);
+            }
+
+            // 4. Normalisasi deviceId.
+            if (request.getDeviceId() != null) {
+                deviceId = request.getDeviceId().trim();
+                request.setDeviceId(deviceId);
+            }
+
+            // 5. Tentukan apakah pesan membutuhkan ACK.
+            boolean requiresAck =
+                    recordId != null && !recordId.isBlank();
+
+            if (requiresAck &&
+                    (deviceId == null || deviceId.isBlank())) {
+
+                throw new IllegalArgumentException(
+                        "deviceId wajib diisi untuk record yang membutuhkan ACK"
+                );
+            }
+
+            // 6. Simpan data ke PostgreSQL.
             soilReadingService.saveReading(request);
 
-            recordId = request.getRecordId();
+            log.info(
+                    "Soil record successfully stored. recordId={}, deviceId={}",
+                    recordId,
+                    deviceId
+            );
 
-            // Pesan legacy tanpa recordId tidak memerlukan application ACK.
-            if (recordId == null || recordId.isBlank()) {
-                log.info("Legacy soil message stored without application ACK");
-                return;
-            }
+            // 7. Pesan legacy tidak menggunakan application ACK.
+            if (!requiresAck) {
 
-            String deviceId = request.getDeviceId();
-
-            if (deviceId == null || deviceId.isBlank()) {
-                log.error(
-                        "Soil record stored but ACK cannot be published: deviceId is missing, recordId={}",
-                        recordId
+                log.info(
+                        "Legacy soil message stored without application ACK"
                 );
+
                 return;
             }
 
-            recordId = recordId.trim();
-            deviceId = deviceId.trim();
-
-            // ACK dikirim setelah saveReading selesai.
+            // 8. Kirim ACK hanya setelah proses penyimpanan berhasil.
             ackPublisher.publishStored(recordId, deviceId);
 
             log.info(
-                    "Soil record stored and ACK published: recordId={}",
-                    recordId
+                    "Soil ACK successfully published. recordId={}, deviceId={}",
+                    recordId,
+                    deviceId
             );
 
         } catch (Exception e) {
+
             log.error(
-                    "Failed to process MQTT soil message. recordId={}. ACK not confirmed.",
+                    "Failed to process soil MQTT message. recordId={}, deviceId={}, payload={}",
                     recordId,
+                    deviceId,
+                    previewPayload(payload),
                     e
             );
         }
+    }
+
+    private String extractPayload(Message<?> message) {
+
+        if (message == null || message.getPayload() == null) {
+            throw new IllegalArgumentException(
+                    "MQTT message atau payload null"
+            );
+        }
+
+        Object payload = message.getPayload();
+
+        if (payload instanceof byte[]) {
+
+            return new String(
+                    (byte[]) payload,
+                    StandardCharsets.UTF_8
+            );
+        }
+
+        if (payload instanceof String) {
+            return (String) payload;
+        }
+
+        throw new IllegalArgumentException(
+                "Unsupported MQTT payload type: "
+                        + payload.getClass().getName()
+        );
+    }
+
+    private String previewPayload(String payload) {
+
+        if (payload == null) {
+            return "null";
+        }
+
+        // Batasi panjang log agar tidak membanjiri console.
+        int maxLength = 300;
+
+        if (payload.length() <= maxLength) {
+            return payload;
+        }
+
+        return payload.substring(0, maxLength) + "...";
     }
 }

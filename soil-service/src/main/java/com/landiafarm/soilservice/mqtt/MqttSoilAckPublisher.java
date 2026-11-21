@@ -28,6 +28,18 @@ public class MqttSoilAckPublisher {
             String deviceId
     ) throws Exception {
 
+        if (recordId == null || recordId.isBlank()) {
+            throw new IllegalArgumentException(
+                    "recordId tidak boleh kosong"
+            );
+        }
+
+        if (deviceId == null || deviceId.isBlank()) {
+            throw new IllegalArgumentException(
+                    "deviceId tidak boleh kosong"
+            );
+        }
+
         String payload = objectMapper.writeValueAsString(
                 Map.of(
                         "recordId", recordId,
@@ -38,7 +50,9 @@ public class MqttSoilAckPublisher {
         );
 
         mqttAckOutbound.handleMessage(
-                MessageBuilder.withPayload(payload).build()
+                MessageBuilder
+                        .withPayload(payload)
+                        .build()
         );
     }
 }

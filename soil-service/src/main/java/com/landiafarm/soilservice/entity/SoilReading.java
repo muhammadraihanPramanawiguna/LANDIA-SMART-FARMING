@@ -1,4 +1,3 @@
-
 package com.landiafarm.soilservice.entity;
 
 import java.time.LocalDateTime;
@@ -9,36 +8,45 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 @Entity
-@Table(name = "soil_readings")
+@Table(
+    name = "soil_readings",
+    uniqueConstraints = {
+        @UniqueConstraint(
+            name = "uk_soil_readings_record_id",
+            columnNames = "record_id"
+        )
+    }
+)
 public class SoilReading {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Nullable untuk kompatibilitas data historis.
-@Column(name = "record_id", length = 64)
-private String recordId;
+    // Nullable untuk kompatibilitas data historis/legacy.
+    // PostgreSQL mengizinkan beberapa NULL pada unique constraint.
+    @Column(name = "record_id", length = 64)
+    private String recordId;
 
-    // Nullable untuk data historis yang belum memiliki deviceId.
     @Column(name = "device_id", length = 100)
     private String deviceId;
 
-    @Column(nullable = false)
+    @Column(name = "sensor_id", nullable = false, length = 100)
     private String sensorId;
 
-    @Column(nullable = false)
+    @Column(name = "value", nullable = false)
     private Double value;
 
-    @Column(nullable = false)
+    @Column(name = "unit", nullable = false, length = 16)
     private String unit;
 
-    @Column(nullable = false)
+    @Column(name = "recorded_at", nullable = false)
     private LocalDateTime recordedAt;
 
-    @Column(nullable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     public SoilReading() {

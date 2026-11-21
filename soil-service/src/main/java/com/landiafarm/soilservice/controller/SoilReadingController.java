@@ -14,18 +14,26 @@ import com.landiafarm.soilservice.dto.SoilReadingRequest;
 import com.landiafarm.soilservice.entity.SoilReading;
 import com.landiafarm.soilservice.service.SoilReadingService;
 
+import jakarta.validation.Valid;
+
 @RestController
 @RequestMapping("/api/soil")
 public class SoilReadingController {
 
     private final SoilReadingService soilReadingService;
 
-    public SoilReadingController(SoilReadingService soilReadingService) {
+    public SoilReadingController(
+            SoilReadingService soilReadingService
+    ) {
         this.soilReadingService = soilReadingService;
     }
 
+    // API contract dipertahankan agar aplikasi yang sudah ada
+    // tidak perlu mengubah bentuk response.
     @PostMapping("/readings")
-    public SoilReading saveReading(@RequestBody SoilReadingRequest request) {
+    public SoilReading saveReading(
+            @Valid @RequestBody SoilReadingRequest request
+    ) {
         return soilReadingService.saveReading(request);
     }
 
@@ -36,8 +44,8 @@ public class SoilReadingController {
 
     @GetMapping("/readings/latest")
     public Optional<SoilReading> getLatestReading(
-            @RequestParam String sensorId) {
-
+            @RequestParam String sensorId
+    ) {
         return soilReadingService.getLatestReading(sensorId);
     }
 }

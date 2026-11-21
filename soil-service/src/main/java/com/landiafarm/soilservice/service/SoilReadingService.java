@@ -1,8 +1,9 @@
-
 package com.landiafarm.soilservice.service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
@@ -10,10 +11,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.landiafarm.soilservice.dto.SoilReadingRequest;
 import com.landiafarm.soilservice.entity.SoilReading;
+import com.landiafarm.soilservice.exception.SoilReadingConflictException;
 import com.landiafarm.soilservice.repository.SoilReadingRepository;
 
 @Service
 public class SoilReadingService {
+
+    private static final ZoneId LANDIA_TIME_ZONE =
+            ZoneId.of("Asia/Jakarta");
+
+    private static final String SOIL_UNIT = "%";
 
     private final SoilReadingRepository repository;
 
@@ -26,83 +33,102 @@ public class SoilReadingService {
 
         validate(request);
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime receivedAt = nowInLandiaTime();
 
-        String recordId = request.getRecordId();
+        String recordId = normalize(request.getRecordId());
+        String deviceId = normalize(request.getDeviceId());
+        String sensorId = request.getSensorId().trim();
+        String unit = request.getUnit().trim();
 
-        // Kompatibilitas data lama tanpa recordId.
+        // Payload legacy tanpa recordId tetap dapat disimpan,
+        // tetapi tidak memakai application-level ACK.
         if (recordId == null) {
+            SoilReading legacyReading = new SoilReading();
 
-            SoilReading reading = new SoilReading();
+            legacyReading.setDeviceId(deviceId);
+            legacyReading.setSensorId(sensorId);
+            legacyReading.setValue(request.getValue());
+            legacyReading.setUnit(unit);
+            legacyReading.setRecordedAt(
+                    request.getRecordedAt() != null
+                            ? truncateToPostgresPrecision(request.getRecordedAt())
+                            : receivedAt
+            );
+            legacyReading.setCreatedAt(receivedAt);
 
-            reading.setDeviceId(normalize(request.getDeviceId()));
-            reading.setSensorId(request.getSensorId().trim());
-            reading.setValue(request.getValue());
-            reading.setUnit(request.getUnit().trim());
-            reading.setRecordedAt(now);
-            reading.setCreatedAt(now);
-
-            return repository.save(reading);
+            return repository.save(legacyReading);
         }
 
-        final String normalizedRecordId = recordId.trim();
-
-        if (normalizedRecordId.isEmpty()
-                || normalizedRecordId.length() > 64) {
+        if (recordId.length() > 64) {
             throw new IllegalArgumentException(
-                    "recordId must contain 1 to 64 characters"
+                    "recordId maksimal 64 karakter"
             );
         }
 
-        final String deviceId = normalize(request.getDeviceId());
-        final String sensorId = request.getSensorId().trim();
-        final String unit = request.getUnit().trim();
-
         if (deviceId == null) {
             throw new IllegalArgumentException(
-                    "deviceId is required"
+                    "deviceId wajib diisi untuk data dengan recordId"
             );
         }
 
         if (deviceId.length() > 100) {
             throw new IllegalArgumentException(
-                    "deviceId must not exceed 100 characters"
+                    "deviceId maksimal 100 karakter"
             );
         }
 
-        // Insert hanya jika recordId belum ada.
+        // Nilai timestamp dari ESP32 diprioritaskan.
+        // Fallback waktu server hanya untuk payload firmware lama.
+        final boolean timestampProvided =
+                request.getRecordedAt() != null;
+
+        final LocalDateTime recordedAt =
+                timestampProvided
+                        ? truncateToPostgresPrecision(request.getRecordedAt())
+                        : receivedAt;
+
         repository.insertIfAbsent(
-                normalizedRecordId,
+                recordId,
                 deviceId,
                 sensorId,
                 request.getValue(),
                 unit,
-                now,
-                now
+                recordedAt,
+                receivedAt
         );
 
-        // Ambil record baru atau record lama jika duplikat.
-        SoilReading stored = repository
-                .findByRecordId(normalizedRecordId)
+        // Jika recordId sudah ada, ambil data yang tersimpan.
+        // Ini membuat retry MQTT aman dan tidak menggandakan histori.
+        SoilReading stored = repository.findByRecordId(recordId)
                 .orElseThrow(() -> new IllegalStateException(
-                        "Record not found after insert: "
-                                + normalizedRecordId
+                        "Soil record tidak ditemukan setelah insert: "
+                                + recordId
                 ));
 
-        // Pastikan ID yang sama memiliki payload yang sama.
         boolean samePayload =
-                deviceId.equals(stored.getDeviceId())
-                && sensorId.equals(stored.getSensorId())
+                Objects.equals(stored.getDeviceId(), deviceId)
+                && Objects.equals(stored.getSensorId(), sensorId)
                 && Double.compare(
                         stored.getValue(),
                         request.getValue()
                 ) == 0
-                && unit.equals(stored.getUnit());
+                && Objects.equals(stored.getUnit(), unit);
+
+        // Timestamp dibandingkan jika dikirim oleh ESP32.
+        // Untuk payload lama tanpa recordedAt, backend tidak
+        // membandingkan timestamp fallback yang berubah saat retry.
+        if (timestampProvided) {
+            samePayload = samePayload
+                    && Objects.equals(
+                            stored.getRecordedAt(),
+                            recordedAt
+                    );
+        }
 
         if (!samePayload) {
-            throw new IllegalStateException(
-                    "recordId reused with different payload: "
-                            + normalizedRecordId
+            throw new SoilReadingConflictException(
+                    "recordId sudah digunakan untuk payload soil yang berbeda: "
+                            + recordId
             );
         }
 
@@ -111,13 +137,20 @@ public class SoilReadingService {
 
     @Transactional(readOnly = true)
     public List<SoilReading> getAllReadings() {
-        return repository.findAll();
+        return repository.findAllByOrderByRecordedAtDesc();
     }
 
     @Transactional(readOnly = true)
     public Optional<SoilReading> getLatestReading(String sensorId) {
+
+        if (sensorId == null || sensorId.isBlank()) {
+            throw new IllegalArgumentException(
+                    "sensorId wajib diisi"
+            );
+        }
+
         return repository.findFirstBySensorIdOrderByRecordedAtDesc(
-                sensorId
+                sensorId.trim()
         );
     }
 
@@ -125,37 +158,85 @@ public class SoilReadingService {
 
         if (request == null) {
             throw new IllegalArgumentException(
-                    "Request must not be null"
-            );
-        }
-
-        if (request.getSensorId() == null
-                || request.getSensorId().isBlank()) {
-            throw new IllegalArgumentException(
-                    "sensorId is required"
-            );
-        }
-
-        if (request.getValue() == null
-                || !Double.isFinite(request.getValue())) {
-            throw new IllegalArgumentException(
-                    "Valid soil value is required"
-            );
-        }
-
-        if (request.getUnit() == null
-                || request.getUnit().isBlank()) {
-            throw new IllegalArgumentException(
-                    "unit is required"
+                    "Request tidak boleh null"
             );
         }
 
         if (request.getRecordId() != null
                 && request.getRecordId().isBlank()) {
             throw new IllegalArgumentException(
-                    "recordId must not be blank"
+                    "recordId tidak boleh kosong"
             );
         }
+
+        if (request.getSensorId() == null
+                || request.getSensorId().isBlank()) {
+            throw new IllegalArgumentException(
+                    "sensorId wajib diisi"
+            );
+        }
+
+        if (request.getSensorId().trim().length() > 100) {
+            throw new IllegalArgumentException(
+                    "sensorId maksimal 100 karakter"
+            );
+        }
+
+        if (request.getValue() == null
+                || !Double.isFinite(request.getValue())) {
+            throw new IllegalArgumentException(
+                    "value harus berupa angka valid"
+            );
+        }
+
+        if (request.getValue() < 0.0
+                || request.getValue() > 100.0) {
+            throw new IllegalArgumentException(
+                    "soil moisture harus berada pada rentang 0 sampai 100"
+            );
+        }
+
+        if (request.getUnit() == null
+                || request.getUnit().isBlank()) {
+            throw new IllegalArgumentException(
+                    "unit wajib diisi"
+            );
+        }
+
+        if (!SOIL_UNIT.equals(request.getUnit().trim())) {
+            throw new IllegalArgumentException(
+                    "unit soil moisture harus menggunakan %"
+            );
+        }
+
+        if (request.getDeviceId() != null
+                && request.getDeviceId().trim().length() > 100) {
+            throw new IllegalArgumentException(
+                    "deviceId maksimal 100 karakter"
+            );
+        }
+
+        if (request.getRecordId() != null
+                && request.getRecordId().trim().length() > 64) {
+            throw new IllegalArgumentException(
+                    "recordId maksimal 64 karakter"
+            );
+        }
+    }
+
+    private LocalDateTime nowInLandiaTime() {
+        return LocalDateTime.now(LANDIA_TIME_ZONE);
+    }
+
+    // PostgreSQL timestamp default precision is microseconds.
+    // Normalize incoming nanoseconds before insert and duplicate comparison.
+    private LocalDateTime truncateToPostgresPrecision(
+            LocalDateTime dateTime
+    ) {
+        int microsecondNanos =
+                (dateTime.getNano() / 1_000) * 1_000;
+
+        return dateTime.withNano(microsecondNanos);
     }
 
     private String normalize(String value) {
