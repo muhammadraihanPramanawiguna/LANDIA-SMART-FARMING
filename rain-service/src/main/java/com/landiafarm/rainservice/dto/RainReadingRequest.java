@@ -3,21 +3,32 @@ package com.landiafarm.rainservice.dto;
 
 import java.time.LocalDateTime;
 
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 public class RainReadingRequest {
 
+    @Size(max = 64, message = "recordId maksimal 64 karakter")
     private String recordId;
+
+    @Size(max = 100, message = "deviceId maksimal 100 karakter")
     private String deviceId;
 
     @NotBlank(message = "sensorId tidak boleh kosong")
+    @Size(max = 100, message = "sensorId maksimal 100 karakter")
     private String sensorId;
 
     @NotNull(message = "value tidak boleh null")
+    @DecimalMin(value = "0.0", message = "value minimal 0")
+    @DecimalMax(value = "100.0", message = "value maksimal 100")
     private Double value;
 
     @NotBlank(message = "unit tidak boleh kosong")
+    @Pattern(regexp = "%", message = "unit harus menggunakan %")
     private String unit;
 
     private LocalDateTime recordedAt;

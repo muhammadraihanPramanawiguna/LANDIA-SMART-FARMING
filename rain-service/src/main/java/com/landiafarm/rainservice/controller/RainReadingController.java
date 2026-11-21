@@ -1,3 +1,4 @@
+
 package com.landiafarm.rainservice.controller;
 
 import java.util.List;
@@ -28,15 +29,18 @@ public class RainReadingController {
         this.rainReadingService = rainReadingService;
     }
 
+    // CREATE RAIN READING
+
     @PostMapping("/readings")
     public ResponseEntity<RainReading> createReading(
             @Valid @RequestBody RainReadingRequest request) {
 
-        RainReading saved =
-                rainReadingService.save(request);
+        RainReading saved = rainReadingService.save(request);
 
         return ResponseEntity.ok(saved);
     }
+
+    // GET ALL RAIN READINGS
 
     @GetMapping("/readings")
     public ResponseEntity<List<RainReading>> getAllReadings() {
@@ -46,6 +50,8 @@ public class RainReadingController {
         );
     }
 
+    // GET READINGS BY SENSOR ID
+
     @GetMapping("/readings/{sensorId}")
     public ResponseEntity<List<RainReading>> getBySensorId(
             @PathVariable String sensorId) {
@@ -54,6 +60,8 @@ public class RainReadingController {
                 rainReadingService.findBySensorId(sensorId)
         );
     }
+
+    // GET LATEST READING
 
     @GetMapping("/readings/{sensorId}/latest")
     public ResponseEntity<RainReading> getLatest(
