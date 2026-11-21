@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.landiafarm.dhtservice.dto.DhtReadingRequest;
 import com.landiafarm.dhtservice.entity.DhtReading;
+import com.landiafarm.dhtservice.exception.DhtReadingConflictException;
 import com.landiafarm.dhtservice.repository.DhtReadingRepository;
 
 @Service
@@ -16,8 +17,7 @@ public class DhtReadingService {
 
     private final DhtReadingRepository repository;
 
-    public DhtReadingService(
-            DhtReadingRepository repository) {
+    public DhtReadingService(DhtReadingRepository repository) {
         this.repository = repository;
     }
 
@@ -28,44 +28,34 @@ public class DhtReadingService {
 
         LocalDateTime now = LocalDateTime.now();
 
-        String recordId = request.getRecordId();
+        String recordId = normalize(request.getRecordId());
+        String deviceId = normalize(request.getDeviceId());
+        String sensorId = request.getSensorId().trim();
 
-        // Kompatibilitas data lama tanpa recordId.
+        LocalDateTime recordedAt =
+                request.getRecordedAt() != null
+                        ? request.getRecordedAt()
+                        : now;
+
+        // Kompatibilitas dengan data lama tanpa recordId.
         if (recordId == null) {
 
             DhtReading reading = new DhtReading();
 
-            reading.setDeviceId(normalize(request.getDeviceId()));
-            reading.setSensorId(request.getSensorId().trim());
+            reading.setDeviceId(deviceId);
+            reading.setSensorId(sensorId);
             reading.setTemperature(request.getTemperature());
             reading.setHumidity(request.getHumidity());
-
-            reading.setRecordedAt(
-                    request.getRecordedAt() != null
-                            ? request.getRecordedAt()
-                            : now
-            );
-
+            reading.setRecordedAt(recordedAt);
             reading.setCreatedAt(now);
 
             return repository.save(reading);
         }
 
-        final String normalizedRecordId = recordId.trim();
-
-        if (normalizedRecordId.isEmpty()
-                || normalizedRecordId.length() > 64) {
-            throw new IllegalArgumentException(
-                    "recordId must contain 1 to 64 characters"
-            );
-        }
-
-        final String deviceId = normalize(request.getDeviceId());
-        final String sensorId = request.getSensorId().trim();
-
+        // Validasi identitas perangkat.
         if (deviceId == null) {
             throw new IllegalArgumentException(
-                    "deviceId is required"
+                    "deviceId is required when recordId is provided"
             );
         }
 
@@ -75,14 +65,16 @@ public class DhtReadingService {
             );
         }
 
-        LocalDateTime recordedAt =
-                request.getRecordedAt() != null
-                        ? request.getRecordedAt()
-                        : now;
+        // Validasi panjang recordId.
+        if (recordId.length() > 64) {
+            throw new IllegalArgumentException(
+                    "recordId must not exceed 64 characters"
+            );
+        }
 
         // Insert hanya jika recordId belum tersedia.
         repository.insertIfAbsent(
-                normalizedRecordId,
+                recordId,
                 deviceId,
                 sensorId,
                 request.getTemperature(),
@@ -91,15 +83,13 @@ public class DhtReadingService {
                 now
         );
 
-        // Ambil record baru atau record lama jika duplikat.
-        DhtReading stored = repository
-                .findByRecordId(normalizedRecordId)
+        // Ambil record baru atau record yang sudah tersimpan.
+        DhtReading stored = repository.findByRecordId(recordId)
                 .orElseThrow(() -> new IllegalStateException(
-                        "Record not found after insert: "
-                                + normalizedRecordId
+                        "Record not found after insert: " + recordId
                 ));
 
-        // Pastikan recordId yang sama memiliki payload sensor yang sama.
+        // Periksa apakah recordId digunakan dengan payload yang sama.
         boolean samePayload =
                 deviceId.equals(stored.getDeviceId())
                 && sensorId.equals(stored.getSensorId())
@@ -110,15 +100,22 @@ public class DhtReadingService {
                 && Double.compare(
                         stored.getHumidity(),
                         request.getHumidity()
-                ) == 0;
+                ) == 0
+                && (
+                        request.getRecordedAt() == null
+                        || request.getRecordedAt().equals(
+                                stored.getRecordedAt()
+                        )
+                );
 
         if (!samePayload) {
-            throw new IllegalStateException(
-                    "recordId reused with different payload: "
-                            + normalizedRecordId
+            throw new DhtReadingConflictException(
+                    "recordId already exists with different payload: "
+                            + recordId
             );
         }
 
+        // Payload identik: kembalikan record lama tanpa duplikasi.
         return stored;
     }
 
@@ -128,18 +125,32 @@ public class DhtReadingService {
     }
 
     @Transactional(readOnly = true)
-    public List<DhtReading> findBySensorId(
-            String sensorId) {
+    public List<DhtReading> findBySensorId(String sensorId) {
 
-        return repository
-                .findBySensorIdOrderByRecordedAtDesc(sensorId);
+        if (sensorId == null || sensorId.isBlank()) {
+            throw new IllegalArgumentException(
+                    "sensorId is required"
+            );
+        }
+
+        return repository.findBySensorIdOrderByRecordedAtDesc(
+                sensorId.trim()
+        );
     }
 
     @Transactional(readOnly = true)
     public DhtReading findLatest(String sensorId) {
 
+        if (sensorId == null || sensorId.isBlank()) {
+            throw new IllegalArgumentException(
+                    "sensorId is required"
+            );
+        }
+
         return repository
-                .findFirstBySensorIdOrderByRecordedAtDesc(sensorId)
+                .findFirstBySensorIdOrderByRecordedAtDesc(
+                        sensorId.trim()
+                )
                 .orElse(null);
     }
 
@@ -174,10 +185,25 @@ public class DhtReadingService {
             );
         }
 
-        if (request.getRecordId() != null
-                && request.getRecordId().isBlank()) {
+        String recordId = request.getRecordId();
+
+        if (recordId != null && recordId.isBlank()) {
             throw new IllegalArgumentException(
                     "recordId must not be blank"
+            );
+        }
+
+        if (recordId != null && recordId.trim().length() > 64) {
+            throw new IllegalArgumentException(
+                    "recordId must not exceed 64 characters"
+            );
+        }
+
+        String deviceId = request.getDeviceId();
+
+        if (deviceId != null && deviceId.trim().length() > 100) {
+            throw new IllegalArgumentException(
+                    "deviceId must not exceed 100 characters"
             );
         }
     }
