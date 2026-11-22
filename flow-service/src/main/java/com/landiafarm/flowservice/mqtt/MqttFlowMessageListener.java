@@ -1,4 +1,3 @@
-
 package com.landiafarm.flowservice.mqtt;
 
 import java.nio.charset.StandardCharsets;
@@ -35,7 +34,6 @@ public class MqttFlowMessageListener {
             Validator validator,
             FlowReadingService flowReadingService,
             MqttFlowAckPublisher ackPublisher) {
-
         this.objectMapper = objectMapper;
         this.validator = validator;
         this.flowReadingService = flowReadingService;
@@ -49,141 +47,76 @@ public class MqttFlowMessageListener {
         String payload = null;
 
         try {
-
-            // 1. Pastikan MQTT manual ACK tersedia.
             SimpleAcknowledgment acknowledgment =
                     StaticMessageHeaderAccessor.getAcknowledgment(message);
 
             if (acknowledgment == null) {
                 throw new IllegalStateException(
-                        "MQTT manual acknowledgment callback tidak tersedia"
-                );
+                        "MQTT manual acknowledgment tidak tersedia");
             }
 
-            // 2. Ambil payload MQTT.
-            payload = extractPayload(message);
+            payload = cleanPayload(extractPayload(message));
 
             if (payload.isBlank()) {
-                throw new IllegalArgumentException(
-                        "MQTT payload tidak boleh kosong"
-                );
+                throw new IllegalArgumentException("Payload Flow kosong");
             }
 
-            // 3. Deserialisasi JSON.
             FlowReadingRequest request =
-                    objectMapper.readValue(
-                            payload,
-                            FlowReadingRequest.class
-                    );
+                    objectMapper.readValue(payload, FlowReadingRequest.class);
 
             if (request == null) {
-                throw new IllegalArgumentException(
-                        "Payload Flow tidak valid"
-                );
+                throw new IllegalArgumentException("Flow request null");
             }
 
-            // 4. Normalisasi identitas.
             recordId = normalize(request.getRecordId());
             deviceId = normalize(request.getDeviceId());
+
+            requireIdentity(recordId, deviceId);
 
             request.setRecordId(recordId);
             request.setDeviceId(deviceId);
 
-            // 5. Validasi hubungan recordId dan deviceId.
-            if (recordId != null && deviceId == null) {
-                throw new IllegalArgumentException(
-                        "deviceId wajib diisi jika recordId diberikan"
-                );
-            }
-
-            // 6. Jalankan Bean Validation.
             validateRequest(request);
 
-            // 7. Simpan atau verifikasi data melalui service.
-            // Service menangani idempotensi dan konflik recordId.
             flowReadingService.save(request);
 
-            log.info(
-                    "Flow data berhasil diproses. recordId={}, deviceId={}, sensorId={}",
-                    recordId,
-                    deviceId,
-                    request.getSensorId()
-            );
+            ackPublisher.publishStored(recordId, deviceId);
 
-            // 8. Kirim Application ACK setelah proses database berhasil.
-            if (recordId != null) {
-
-                ackPublisher.publishStored(
-                        recordId,
-                        deviceId
-                );
-
-                log.info(
-                        "Flow Application ACK published. recordId={}, deviceId={}",
-                        recordId,
-                        deviceId
-                );
-
-            } else {
-
-                log.warn(
-                        "Legacy Flow payload diproses tanpa Application ACK. sensorId={}",
-                        request.getSensorId()
-                );
-            }
-
-            // 9. Selesaikan MQTT manual ACK.
             acknowledgment.acknowledge();
 
             log.info(
-                    "Flow MQTT message acknowledged. recordId={}",
-                    recordId
-            );
+                    "Flow MQTT berhasil disimpan dan di-ACK. recordId={}, deviceId={}",
+                    recordId, deviceId);
 
-        } catch (Exception exception) {
-
-            // Jangan menyelesaikan MQTT ACK jika proses gagal.
-            // Redelivery bergantung pada konfigurasi session dan broker.
-
+        } catch (Exception e) {
             log.error(
-                    "Gagal memproses Flow MQTT. recordId={}, deviceId={}, payload={}. MQTT ACK belum diselesaikan.",
-                    recordId,
-                    deviceId,
-                    preview(payload),
-                    exception
-            );
+                    "Gagal memproses Flow MQTT. recordId={}, deviceId={}, payload={}",
+                    recordId, deviceId, preview(payload), e);
         }
     }
 
     private void validateRequest(FlowReadingRequest request) {
-
         Set<ConstraintViolation<FlowReadingRequest>> violations =
                 validator.validate(request);
 
         if (!violations.isEmpty()) {
-
             StringJoiner errors = new StringJoiner("; ");
 
             for (ConstraintViolation<FlowReadingRequest> violation : violations) {
                 errors.add(
                         violation.getPropertyPath()
                                 + ": "
-                                + violation.getMessage()
-                );
+                                + violation.getMessage());
             }
 
             throw new IllegalArgumentException(
-                    "Validasi payload Flow gagal: " + errors
-            );
+                    "Validasi Flow gagal: " + errors);
         }
     }
 
     private String extractPayload(Message<?> message) {
-
         if (message == null || message.getPayload() == null) {
-            throw new IllegalArgumentException(
-                    "MQTT message/payload tidak boleh null"
-            );
+            throw new IllegalArgumentException("MQTT message/payload null");
         }
 
         Object raw = message.getPayload();
@@ -196,27 +129,27 @@ public class MqttFlowMessageListener {
             return text;
         }
 
-        throw new IllegalArgumentException(
-                "Tipe payload MQTT tidak didukung: "
-                        + raw.getClass().getName()
-        );
+        throw new IllegalArgumentException("Tipe payload MQTT tidak didukung");
+    }
+
+    private String cleanPayload(String payload) {
+        return payload.replace("\uFEFF", "").trim();
     }
 
     private String normalize(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
 
-        return value == null || value.isBlank()
-                ? null
-                : value.trim();
+    private void requireIdentity(String recordId, String deviceId) {
+        if (recordId == null || deviceId == null) {
+            throw new IllegalArgumentException(
+                    "recordId dan deviceId wajib diisi");
+        }
     }
 
     private String preview(String payload) {
-
-        if (payload == null) {
-            return "null";
-        }
-
+        if (payload == null) return "null";
         return payload.length() <= 300
-                ? payload
-                : payload.substring(0, 300) + "...";
+                ? payload : payload.substring(0, 300) + "...";
     }
 }

@@ -1,4 +1,3 @@
-
 package com.landiafarm.waterlevelservice.mqtt;
 
 import java.nio.charset.StandardCharsets;
@@ -18,9 +17,7 @@ import com.landiafarm.waterlevelservice.service.WaterLevelReadingService;
 public class MqttWaterLevelMessageListener {
 
     private static final Logger log =
-            LoggerFactory.getLogger(
-                    MqttWaterLevelMessageListener.class
-            );
+            LoggerFactory.getLogger(MqttWaterLevelMessageListener.class);
 
     private final ObjectMapper objectMapper;
     private final WaterLevelReadingService service;
@@ -30,7 +27,6 @@ public class MqttWaterLevelMessageListener {
             ObjectMapper objectMapper,
             WaterLevelReadingService service,
             MqttWaterLevelAckPublisher ackPublisher) {
-
         this.objectMapper = objectMapper;
         this.service = service;
         this.ackPublisher = ackPublisher;
@@ -43,147 +39,89 @@ public class MqttWaterLevelMessageListener {
         String payload = null;
 
         try {
-            // 1. Ekstrak payload MQTT.
-            payload = extractPayload(message);
+            SimpleAcknowledgment acknowledgment =
+                    StaticMessageHeaderAccessor.getAcknowledgment(message);
+
+            if (acknowledgment == null) {
+                throw new IllegalStateException(
+                        "MQTT manual acknowledgment tidak tersedia");
+            }
+
+            payload = cleanPayload(extractPayload(message));
 
             if (payload.isBlank()) {
-                throw new IllegalArgumentException(
-                        "MQTT payload must not be empty"
-                );
+                throw new IllegalArgumentException("Payload Water Level kosong");
             }
 
-            // 2. Parse JSON menjadi DTO.
             WaterLevelReadingRequest request =
                     objectMapper.readValue(
-                            payload,
-                            WaterLevelReadingRequest.class
-                    );
+                            payload, WaterLevelReadingRequest.class);
 
             if (request == null) {
-                throw new IllegalArgumentException(
-                        "Invalid water level MQTT payload"
-                );
+                throw new IllegalArgumentException("Water Level request null");
             }
 
-            // 3. Normalisasi identitas perangkat dan record.
             recordId = normalize(request.getRecordId());
             deviceId = normalize(request.getDeviceId());
+
+            requireIdentity(recordId, deviceId);
 
             request.setRecordId(recordId);
             request.setDeviceId(deviceId);
 
-            if (recordId != null && deviceId == null) {
-                throw new IllegalArgumentException(
-                        "deviceId is required when recordId is provided"
-                );
-            }
-
-            // 4. Simpan atau verifikasi record secara idempotent.
             service.save(request);
 
-            // 5. Publish Application ACK setelah penyimpanan berhasil.
-            if (recordId != null) {
+            ackPublisher.publishStored(recordId, deviceId);
 
-                ackPublisher.publishStored(
-                        recordId,
-                        deviceId
-                );
-
-                log.info(
-                        "Application ACK published. recordId={}, deviceId={}",
-                        recordId,
-                        deviceId
-                );
-
-            } else {
-
-                log.info(
-                        "Legacy water level record stored without application ACK"
-                );
-            }
-
-            // 6. Ambil callback MQTT manual acknowledgment.
-            SimpleAcknowledgment acknowledgment =
-                    StaticMessageHeaderAccessor.getAcknowledgment(
-                            message
-                    );
-
-            if (acknowledgment == null) {
-                throw new IllegalStateException(
-                        "MQTT acknowledgment callback is missing"
-                );
-            }
-
-            // 7. Selesaikan MQTT Protocol ACK.
             acknowledgment.acknowledge();
 
             log.info(
-                    "MQTT message acknowledged successfully. recordId={}, deviceId={}",
-                    recordId,
-                    deviceId
-            );
+                    "Water Level MQTT berhasil disimpan dan di-ACK. recordId={}, deviceId={}",
+                    recordId, deviceId);
 
-        } catch (Exception exception) {
-
-            // Jangan menyelesaikan manual ACK jika pemrosesan gagal.
+        } catch (Exception e) {
             log.error(
-                    "Failed to process water level MQTT message. "
-                            + "recordId={}, deviceId={}, payload={}. "
-                            + "MQTT ACK not completed.",
-                    recordId,
-                    deviceId,
-                    previewPayload(payload),
-                    exception
-            );
+                    "Gagal memproses Water Level MQTT. recordId={}, deviceId={}, payload={}",
+                    recordId, deviceId, preview(payload), e);
         }
     }
 
     private String extractPayload(Message<?> message) {
-
         if (message == null || message.getPayload() == null) {
-            throw new IllegalArgumentException(
-                    "MQTT message and payload must not be null"
-            );
+            throw new IllegalArgumentException("MQTT message/payload null");
         }
 
-        Object rawPayload = message.getPayload();
+        Object raw = message.getPayload();
 
-        if (rawPayload instanceof byte[] bytes) {
-            return new String(
-                    bytes,
-                    StandardCharsets.UTF_8
-            );
+        if (raw instanceof byte[] bytes) {
+            return new String(bytes, StandardCharsets.UTF_8);
         }
 
-        if (rawPayload instanceof String text) {
+        if (raw instanceof String text) {
             return text;
         }
 
-        throw new IllegalArgumentException(
-                "Unsupported MQTT payload type: "
-                        + rawPayload.getClass().getName()
-        );
+        throw new IllegalArgumentException("Tipe payload MQTT tidak didukung");
+    }
+
+    private String cleanPayload(String payload) {
+        return payload.replace("\uFEFF", "").trim();
     }
 
     private String normalize(String value) {
-
-        return value == null || value.isBlank()
-                ? null
-                : value.trim();
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
-    private String previewPayload(String payload) {
-
-        if (payload == null) {
-            return "null";
+    private void requireIdentity(String recordId, String deviceId) {
+        if (recordId == null || deviceId == null) {
+            throw new IllegalArgumentException(
+                    "recordId dan deviceId wajib diisi");
         }
+    }
 
-        int maxLength = 300;
-
-        if (payload.length() <= maxLength) {
-            return payload;
-        }
-
-        return payload.substring(0, maxLength) + "...";
+    private String preview(String payload) {
+        if (payload == null) return "null";
+        return payload.length() <= 300
+                ? payload : payload.substring(0, 300) + "...";
     }
 }
