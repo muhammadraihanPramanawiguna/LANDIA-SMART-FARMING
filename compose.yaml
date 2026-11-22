@@ -175,7 +175,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
-
+      MQTT_BROKER_URL: tcp://mqtt-broker:1883
     ports:
       - "8084:8084"
 

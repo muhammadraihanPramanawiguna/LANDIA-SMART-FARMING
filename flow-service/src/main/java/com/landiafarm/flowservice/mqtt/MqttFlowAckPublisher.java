@@ -27,6 +27,18 @@ public class MqttFlowAckPublisher {
             String recordId,
             String deviceId) throws Exception {
 
+        if (recordId == null || recordId.isBlank()) {
+            throw new IllegalArgumentException(
+                    "recordId ACK tidak boleh kosong"
+            );
+        }
+
+        if (deviceId == null || deviceId.isBlank()) {
+            throw new IllegalArgumentException(
+                    "deviceId ACK tidak boleh kosong"
+            );
+        }
+
         String payload = objectMapper.writeValueAsString(
                 Map.of(
                         "recordId", recordId,

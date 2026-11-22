@@ -1,4 +1,3 @@
-
 package com.landiafarm.flowservice.entity;
 
 import java.time.LocalDateTime;
@@ -24,95 +23,46 @@ public class FlowReading {
     @Column(name = "device_id", length = 100)
     private String deviceId;
 
-    @Column(nullable = false)
+    @Column(name = "sensor_id", nullable = false, length = 100)
     private String sensorId;
 
+    // Debit air sesaat dalam L/min.
     @Column(nullable = false)
     private Double value;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 16)
     private String unit;
 
-    @Column(nullable = false)
+    // Volume kumulatif dari ESP32; nullable untuk data firmware lama.
+    @Column(name = "total_volume_liters")
+    private Double totalVolumeLiters;
+
+    @Column(name = "recorded_at", nullable = false)
     private LocalDateTime recordedAt;
 
-    @Column(nullable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     public FlowReading() {
     }
 
-    public FlowReading(
-            String sensorId,
-            Double value,
-            String unit,
-            LocalDateTime recordedAt,
-            LocalDateTime createdAt) {
-
-        this.sensorId = sensorId;
-        this.value = value;
-        this.unit = unit;
-        this.recordedAt = recordedAt;
-        this.createdAt = createdAt;
+    public Long getId() { return id; }
+    public String getRecordId() { return recordId; }
+    public void setRecordId(String recordId) { this.recordId = recordId; }
+    public String getDeviceId() { return deviceId; }
+    public void setDeviceId(String deviceId) { this.deviceId = deviceId; }
+    public String getSensorId() { return sensorId; }
+    public void setSensorId(String sensorId) { this.sensorId = sensorId; }
+    public Double getValue() { return value; }
+    public void setValue(Double value) { this.value = value; }
+    public String getUnit() { return unit; }
+    public void setUnit(String unit) { this.unit = unit; }
+    public Double getTotalVolumeLiters() { return totalVolumeLiters; }
+    public void setTotalVolumeLiters(Double totalVolumeLiters) {
+        this.totalVolumeLiters = totalVolumeLiters;
     }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getRecordId() {
-        return recordId;
-    }
-
-    public void setRecordId(String recordId) {
-        this.recordId = recordId;
-    }
-
-    public String getDeviceId() {
-        return deviceId;
-    }
-
-    public void setDeviceId(String deviceId) {
-        this.deviceId = deviceId;
-    }
-
-    public String getSensorId() {
-        return sensorId;
-    }
-
-    public void setSensorId(String sensorId) {
-        this.sensorId = sensorId;
-    }
-
-    public Double getValue() {
-        return value;
-    }
-
-    public void setValue(Double value) {
-        this.value = value;
-    }
-
-    public String getUnit() {
-        return unit;
-    }
-
-    public void setUnit(String unit) {
-        this.unit = unit;
-    }
-
-    public LocalDateTime getRecordedAt() {
-        return recordedAt;
-    }
-
-    public void setRecordedAt(LocalDateTime recordedAt) {
-        this.recordedAt = recordedAt;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
+    public LocalDateTime getRecordedAt() { return recordedAt; }
+    public void setRecordedAt(LocalDateTime recordedAt) { this.recordedAt = recordedAt; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

@@ -1,4 +1,3 @@
-
 package com.landiafarm.flowservice.repository;
 
 import java.time.LocalDateTime;
@@ -12,36 +11,23 @@ import org.springframework.data.repository.query.Param;
 
 import com.landiafarm.flowservice.entity.FlowReading;
 
-public interface FlowReadingRepository
-        extends JpaRepository<FlowReading, Long> {
+public interface FlowReadingRepository extends JpaRepository<FlowReading, Long> {
 
-    List<FlowReading> findBySensorIdOrderByRecordedAtDesc(
-            String sensorId);
+    List<FlowReading> findBySensorIdOrderByRecordedAtDesc(String sensorId);
 
-    Optional<FlowReading> findFirstBySensorIdOrderByRecordedAtDesc(
-            String sensorId);
+    Optional<FlowReading> findFirstBySensorIdOrderByRecordedAtDesc(String sensorId);
 
     Optional<FlowReading> findByRecordId(String recordId);
 
     @Modifying
     @Query(value = """
             INSERT INTO flow_readings (
-                record_id,
-                device_id,
-                sensor_id,
-                value,
-                unit,
-                recorded_at,
-                created_at
+                record_id, device_id, sensor_id, value, unit,
+                total_volume_liters, recorded_at, created_at
             )
             VALUES (
-                :recordId,
-                :deviceId,
-                :sensorId,
-                :value,
-                :unit,
-                :recordedAt,
-                :createdAt
+                :recordId, :deviceId, :sensorId, :value, :unit,
+                :totalVolumeLiters, :recordedAt, :createdAt
             )
             ON CONFLICT (record_id) DO NOTHING
             """, nativeQuery = true)
@@ -51,7 +37,7 @@ public interface FlowReadingRepository
             @Param("sensorId") String sensorId,
             @Param("value") Double value,
             @Param("unit") String unit,
+            @Param("totalVolumeLiters") Double totalVolumeLiters,
             @Param("recordedAt") LocalDateTime recordedAt,
-            @Param("createdAt") LocalDateTime createdAt
-    );
+            @Param("createdAt") LocalDateTime createdAt);
 }
