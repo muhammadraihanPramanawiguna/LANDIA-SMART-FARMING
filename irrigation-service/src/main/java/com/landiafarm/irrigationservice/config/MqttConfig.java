@@ -1,4 +1,3 @@
-
 package com.landiafarm.irrigationservice.config;
 
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
@@ -23,13 +22,16 @@ public class MqttConfig {
         MqttConnectOptions options = new MqttConnectOptions();
 
         options.setServerURIs(new String[]{brokerUrl});
-        options.setCleanSession(true);
+
+        // Client ID stabil diperlukan untuk persistent session.
+        options.setCleanSession(false);
+
         options.setAutomaticReconnect(true);
         options.setConnectionTimeout(10);
         options.setKeepAliveInterval(60);
 
         DefaultMqttPahoClientFactory factory =
-                new DefaultMqttPahoClientFactory();
+            new DefaultMqttPahoClientFactory();
 
         factory.setConnectionOptions(options);
 
@@ -39,6 +41,6 @@ public class MqttConfig {
     @Bean
     public ObjectMapper objectMapper() {
         return new ObjectMapper()
-                .registerModule(new JavaTimeModule());
+            .registerModule(new JavaTimeModule());
     }
 }

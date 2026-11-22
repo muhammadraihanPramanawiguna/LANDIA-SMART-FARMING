@@ -186,7 +186,7 @@ services:
         condition: service_started
 
 
-  # ==========================================
+   # ==========================================
   # IRRIGATION SERVICE
   # ==========================================
   irrigation-service:
@@ -200,9 +200,15 @@ services:
     environment:
       TZ: Asia/Jakarta
       JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Jakarta"
+
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+
+      MQTT_BROKER_URL: tcp://mqtt-broker:1883
+      MQTT_CLIENT_ID: landia-irrigation-service
+      MQTT_IRRIGATION_EVENT_TOPIC: landia/irrigation/event
+      MQTT_ACK_TOPIC: landia/ack/landia-esp32-01
 
     ports:
       - "8085:8085"
@@ -212,8 +218,7 @@ services:
         condition: service_healthy
       mqtt-broker:
         condition: service_started
-
-
+        
   # ==========================================
   # API GATEWAY
   # ==========================================

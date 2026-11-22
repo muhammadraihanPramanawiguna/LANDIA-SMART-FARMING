@@ -1,4 +1,3 @@
-
 package com.landiafarm.irrigationservice.controller;
 
 import java.util.List;
@@ -25,16 +24,19 @@ public class IrrigationEventController {
 
     public IrrigationEventController(
             IrrigationEventService service) {
-
         this.service = service;
     }
 
+    /*
+     * Endpoint ini untuk pengujian atau integrasi REST.
+     * Tidak mengirim command ke pompa.
+     */
     @PostMapping
-    public ResponseEntity<IrrigationEvent> execute(
+    public ResponseEntity<IrrigationEvent> save(
             @Valid @RequestBody IrrigationEventRequest request) {
 
-        return ResponseEntity.accepted().body(
-                service.execute(request)
+        return ResponseEntity.ok(
+            service.save(request)
         );
     }
 
@@ -42,7 +44,7 @@ public class IrrigationEventController {
     public ResponseEntity<List<IrrigationEvent>> findAll() {
 
         return ResponseEntity.ok(
-                service.findAll()
+            service.findAll()
         );
     }
 
@@ -51,7 +53,7 @@ public class IrrigationEventController {
             @PathVariable String deviceId) {
 
         return ResponseEntity.ok(
-                service.findByDeviceId(deviceId)
+            service.findByDeviceId(deviceId)
         );
     }
 }

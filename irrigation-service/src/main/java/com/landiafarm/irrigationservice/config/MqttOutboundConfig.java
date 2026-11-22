@@ -1,4 +1,3 @@
-
 package com.landiafarm.irrigationservice.config;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -13,21 +12,21 @@ public class MqttOutboundConfig {
     @Value("${mqtt.client.id}")
     private String clientId;
 
-    @Value("${mqtt.topic}")
-    private String topic;
+    @Value("${mqtt.ack.topic}")
+    private String ackTopic;
 
     @Bean
-    public MqttPahoMessageHandler mqttOutbound(
+    public MqttPahoMessageHandler mqttAckOutbound(
             MqttPahoClientFactory mqttClientFactory) {
 
         MqttPahoMessageHandler handler =
-                new MqttPahoMessageHandler(
-                        clientId + "-publisher",
-                        mqttClientFactory
-                );
+            new MqttPahoMessageHandler(
+                clientId + "-ack-publisher",
+                mqttClientFactory
+            );
 
         handler.setAsync(false);
-        handler.setDefaultTopic(topic);
+        handler.setDefaultTopic(ackTopic);
         handler.setDefaultQos(1);
 
         return handler;
