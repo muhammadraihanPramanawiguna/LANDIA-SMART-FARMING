@@ -5,6 +5,8 @@ import java.nio.charset.StandardCharsets;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.integration.StaticMessageHeaderAccessor;
+import org.springframework.integration.acks.SimpleAcknowledgment;
 import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
 
@@ -40,21 +42,26 @@ public class MqttSoilMessageListener {
 
         try {
 
-            // 1. Validasi dan ekstrak payload.
+            // 1. Ambil MQTT manual acknowledgment.
+            SimpleAcknowledgment acknowledgment =
+                    StaticMessageHeaderAccessor.getAcknowledgment(message);
+
+            if (acknowledgment == null) {
+                throw new IllegalStateException(
+                        "MQTT manual acknowledgment tidak tersedia"
+                );
+            }
+
+            // 2. Ekstrak payload.
             payload = extractPayload(message);
 
             if (payload.isBlank()) {
                 throw new IllegalArgumentException(
-                        "MQTT payload kosong"
+                        "MQTT soil payload tidak boleh kosong"
                 );
             }
 
-            log.info(
-                    "MQTT soil message received. Payload length={}",
-                    payload.length()
-            );
-
-            // 2. Parse JSON menjadi SoilReadingRequest.
+            // 3. Parse JSON.
             SoilReadingRequest request =
                     objectMapper.readValue(
                             payload,
@@ -67,66 +74,65 @@ public class MqttSoilMessageListener {
                 );
             }
 
-            // 3. Normalisasi recordId.
-            if (request.getRecordId() != null) {
-                recordId = request.getRecordId().trim();
-                request.setRecordId(recordId);
-            }
+            // 4. Normalisasi identitas.
+            recordId = normalize(request.getRecordId());
+            deviceId = normalize(request.getDeviceId());
 
-            // 4. Normalisasi deviceId.
-            if (request.getDeviceId() != null) {
-                deviceId = request.getDeviceId().trim();
-                request.setDeviceId(deviceId);
-            }
+            request.setRecordId(recordId);
+            request.setDeviceId(deviceId);
 
-            // 5. Tentukan apakah pesan membutuhkan ACK.
             boolean requiresAck =
-                    recordId != null && !recordId.isBlank();
+                    recordId != null;
 
-            if (requiresAck &&
-                    (deviceId == null || deviceId.isBlank())) {
-
+            if (requiresAck && deviceId == null) {
                 throw new IllegalArgumentException(
-                        "deviceId wajib diisi untuk record yang membutuhkan ACK"
+                        "deviceId wajib diisi jika recordId tersedia"
                 );
             }
 
-            // 6. Simpan data ke PostgreSQL.
+            // 5. Simpan data secara idempotent.
             soilReadingService.saveReading(request);
 
             log.info(
-                    "Soil record successfully stored. recordId={}, deviceId={}",
+                    "Soil record stored. recordId={}, deviceId={}",
                     recordId,
                     deviceId
             );
 
-            // 7. Pesan legacy tidak menggunakan application ACK.
-            if (!requiresAck) {
+            // 6. Application ACK setelah penyimpanan berhasil.
+            if (requiresAck) {
 
-                log.info(
-                        "Legacy soil message stored without application ACK"
+                ackPublisher.publishStored(
+                        recordId,
+                        deviceId
                 );
 
-                return;
+                log.info(
+                        "Soil Application ACK published. recordId={}",
+                        recordId
+                );
             }
 
-            // 8. Kirim ACK hanya setelah proses penyimpanan berhasil.
-            ackPublisher.publishStored(recordId, deviceId);
+            // 7. MQTT Protocol ACK setelah seluruh proses berhasil.
+            acknowledgment.acknowledge();
 
             log.info(
-                    "Soil ACK successfully published. recordId={}, deviceId={}",
-                    recordId,
-                    deviceId
+                    "Soil MQTT message acknowledged. recordId={}",
+                    recordId
             );
 
-        } catch (Exception e) {
+        } catch (Exception exception) {
 
+            // Jangan acknowledge jika penyimpanan atau
+            // Application ACK gagal.
             log.error(
-                    "Failed to process soil MQTT message. recordId={}, deviceId={}, payload={}",
+                    "Failed to process Soil MQTT. "
+                            + "recordId={}, deviceId={}, payload={}. "
+                            + "MQTT ACK not completed.",
                     recordId,
                     deviceId,
                     previewPayload(payload),
-                    e
+                    exception
             );
         }
     }
@@ -142,7 +148,6 @@ public class MqttSoilMessageListener {
         Object payload = message.getPayload();
 
         if (payload instanceof byte[]) {
-
             return new String(
                     (byte[]) payload,
                     StandardCharsets.UTF_8
@@ -159,19 +164,23 @@ public class MqttSoilMessageListener {
         );
     }
 
+    private String normalize(String value) {
+
+        return value == null || value.isBlank()
+                ? null
+                : value.trim();
+    }
+
     private String previewPayload(String payload) {
 
         if (payload == null) {
             return "null";
         }
 
-        // Batasi panjang log agar tidak membanjiri console.
         int maxLength = 300;
 
-        if (payload.length() <= maxLength) {
-            return payload;
-        }
-
-        return payload.substring(0, maxLength) + "...";
+        return payload.length() <= maxLength
+                ? payload
+                : payload.substring(0, maxLength) + "...";
     }
 }

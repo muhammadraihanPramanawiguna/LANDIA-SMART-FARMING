@@ -40,9 +40,10 @@ public class MqttInboundConfig {
 
         converter.setPayloadAsBytes(true);
 
-        adapter.setConverter(converter);
-        adapter.setCompletionTimeout(5000);
-        adapter.setQos(1);
+adapter.setConverter(converter);
+adapter.setCompletionTimeout(5000);
+adapter.setQos(1);
+adapter.setManualAcks(true);
 
         return IntegrationFlow
                 .from(adapter)

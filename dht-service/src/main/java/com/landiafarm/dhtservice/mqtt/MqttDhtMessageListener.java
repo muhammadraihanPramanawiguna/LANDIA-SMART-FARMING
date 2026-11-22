@@ -5,6 +5,8 @@ import java.nio.charset.StandardCharsets;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.integration.StaticMessageHeaderAccessor;
+import org.springframework.integration.acks.SimpleAcknowledgment;
 import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
 
@@ -25,8 +27,8 @@ public class MqttDhtMessageListener {
     public MqttDhtMessageListener(
             ObjectMapper objectMapper,
             DhtReadingService service,
-            MqttDhtAckPublisher ackPublisher
-    ) {
+            MqttDhtAckPublisher ackPublisher) {
+
         this.objectMapper = objectMapper;
         this.service = service;
         this.ackPublisher = ackPublisher;
@@ -39,7 +41,18 @@ public class MqttDhtMessageListener {
         String payload = null;
 
         try {
-            // 1. Ekstrak payload MQTT.
+
+            // 1. Ambil manual acknowledgment.
+            SimpleAcknowledgment acknowledgment =
+                    StaticMessageHeaderAccessor.getAcknowledgment(message);
+
+            if (acknowledgment == null) {
+                throw new IllegalStateException(
+                        "MQTT manual acknowledgment tidak tersedia"
+                );
+            }
+
+            // 2. Ekstrak payload.
             payload = extractPayload(message);
 
             if (payload.isBlank()) {
@@ -48,12 +61,7 @@ public class MqttDhtMessageListener {
                 );
             }
 
-            log.info(
-                    "DHT MQTT message received. Payload length={}",
-                    payload.length()
-            );
-
-            // 2. Parse JSON.
+            // 3. Parse JSON.
             DhtReadingRequest request =
                     objectMapper.readValue(
                             payload,
@@ -66,62 +74,64 @@ public class MqttDhtMessageListener {
                 );
             }
 
-            // 3. Normalisasi recordId.
-            if (request.getRecordId() != null) {
-                recordId = request.getRecordId().trim();
-                request.setRecordId(recordId);
-            }
+            // 4. Normalisasi identitas.
+            recordId = normalize(request.getRecordId());
+            deviceId = normalize(request.getDeviceId());
 
-            // 4. Normalisasi deviceId.
-            if (request.getDeviceId() != null) {
-                deviceId = request.getDeviceId().trim();
-                request.setDeviceId(deviceId);
-            }
+            request.setRecordId(recordId);
+            request.setDeviceId(deviceId);
 
             boolean requiresAck =
-                    recordId != null && !recordId.isBlank();
+                    recordId != null;
 
-            if (requiresAck &&
-                    (deviceId == null || deviceId.isBlank())) {
+            if (requiresAck && deviceId == null) {
                 throw new IllegalArgumentException(
-                        "deviceId wajib diisi untuk record yang membutuhkan ACK"
+                        "deviceId wajib diisi jika recordId tersedia"
                 );
             }
 
-            // 5. Simpan ke PostgreSQL.
+            // 5. Simpan data.
             service.save(request);
 
             log.info(
-                    "DHT record successfully stored. recordId={}",
-                    recordId
-            );
-
-            // 6. Data legacy tidak membutuhkan ACK.
-            if (!requiresAck) {
-                log.info(
-                        "Legacy DHT message stored without application ACK"
-                );
-                return;
-            }
-
-            // 7. ACK hanya setelah save berhasil.
-            ackPublisher.publishStored(recordId, deviceId);
-
-            log.info(
-                    "DHT ACK successfully published. recordId={}, deviceId={}",
+                    "DHT record stored. recordId={}, deviceId={}",
                     recordId,
                     deviceId
             );
 
-        } catch (Exception e) {
+            // 6. Kirim Application ACK.
+            if (requiresAck) {
+
+                ackPublisher.publishStored(
+                        recordId,
+                        deviceId
+                );
+
+                log.info(
+                        "DHT Application ACK published. recordId={}",
+                        recordId
+                );
+            }
+
+            // 7. Selesaikan MQTT Protocol ACK.
+            acknowledgment.acknowledge();
+
+            log.info(
+                    "DHT MQTT message acknowledged. recordId={}",
+                    recordId
+            );
+
+        } catch (Exception exception) {
+
+            // Jangan acknowledge jika proses gagal.
             log.error(
-                    "Failed to process DHT MQTT message. "
+                    "Failed to process DHT MQTT. "
                             + "recordId={}, deviceId={}, payload={}. "
-                            + "ACK not confirmed.",
+                            + "MQTT ACK not completed.",
                     recordId,
                     deviceId,
                     previewPayload(payload),
-                    e
+                    exception
             );
         }
     }
@@ -153,6 +163,13 @@ public class MqttDhtMessageListener {
         );
     }
 
+    private String normalize(String value) {
+
+        return value == null || value.isBlank()
+                ? null
+                : value.trim();
+    }
+
     private String previewPayload(String payload) {
 
         if (payload == null) {
@@ -161,10 +178,8 @@ public class MqttDhtMessageListener {
 
         int maxLength = 300;
 
-        if (payload.length() <= maxLength) {
-            return payload;
-        }
-
-        return payload.substring(0, maxLength) + "...";
+        return payload.length() <= maxLength
+                ? payload
+                : payload.substring(0, maxLength) + "...";
     }
 }
