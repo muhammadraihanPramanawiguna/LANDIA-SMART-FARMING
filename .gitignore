@@ -33,3 +33,6 @@ application-local.yml
 
 # Docker
 docker-data/
+
+flow-service.zip
+irrigation-test.json
